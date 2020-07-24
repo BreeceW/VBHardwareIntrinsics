@@ -2,22 +2,45 @@ Imports System.Runtime.Intrinsics
 Imports System.Runtime.Intrinsics.X86
 
 Module Program
-    Const _count = 10000
+    Const _count = 1048576
     Const _max As Integer = Integer.MaxValue / _count
+    Const _iterations = 10000
     ReadOnly _rand As Random = New Random()
 
     Sub Main(args As String())
+        If Not Sse2.IsSupported Then
+            Console.WriteLine("SSE2 not supported")
+            Exit Sub
+        End If
+
         Dim numbers(_count - 1) As Integer
         For i = 0 To numbers.GetUpperBound(0)
             numbers(i) = _rand.Next(_max)
         Next
 
-        Console.WriteLine("Simple: {0}", SumVectorizedSse2(numbers))
-        If (Sse2.IsSupported) Then
-            Console.WriteLine("  Sse2: {0}", SumVectorizedSse2(numbers))
-        Else
-            Console.WriteLine("  Sse2: Unsupported")
-        End If
+        Dim watch As Stopwatch
+
+        Dim sum1 As Integer
+        watch = Stopwatch.StartNew()
+        For i = 1 To _iterations
+            sum1 = SimpleSum(numbers)
+        Next
+        watch.Stop()
+        Dim d1 = watch.ElapsedMilliseconds / _count
+
+        Dim sum2 As Integer
+        watch = Stopwatch.StartNew()
+        For i = 1 To _iterations
+            sum2 = SumVectorizedSse2(numbers)
+        Next
+        watch.Stop()
+        Dim d2 = watch.ElapsedMilliseconds / _count
+
+        Console.ForegroundColor = If(d1 <= d2, ConsoleColor.Green, ConsoleColor.Red)
+        Console.WriteLine("Simple: {0}, took {1} ms", sum1, d1)
+        Console.ForegroundColor = If(d2 <= d1, ConsoleColor.Green, ConsoleColor.Red)
+        Console.WriteLine("  SSE2: {0}, took {1} ms", sum2, d2)
+        Console.ResetColor()
     End Sub
 
     Function SimpleSum(source As Integer()) As Integer
